@@ -196,6 +196,40 @@ namespace {
     EXPECT_TRUE( set_malloc_result == malloc );
   }
 
+  TEST_F( ParamTest, GetParamIntoString) {
+    const size_t max_size = 100;
+    size_t param_size;
+    char *buffer = (char*)malloc(max_size);
+
+    param_size = stumpless_param_into_string( &basic_param, buffer, max_size );
+    ASSERT_EQ( param_size, (&basic_param)->name_length + (&basic_param)->value_length + 4 );
+    EXPECT_STREQ( buffer, "basic-name=\"basic-value\"" );
+    EXPECT_NO_ERROR;
+    
+    free( buffer );
+  }
+
+  TEST_F( ParamTest, ParamIntoStringNullBuffer) {
+    const size_t max_size = 100;
+    size_t param_size;
+
+    param_size = stumpless_param_into_string( &basic_param, NULL, max_size );
+    ASSERT_EQ( param_size, 0 );
+    EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_EMPTY );
+  }
+
+  TEST_F( ParamTest, ParamIntoStringInsufficientBuffer) {
+    const size_t max_size = 10;
+    size_t param_size;
+    char *buffer = (char*)malloc(max_size);
+
+    param_size = stumpless_param_into_string( &basic_param, buffer, max_size );
+    ASSERT_EQ( param_size, (&basic_param)->name_length + (&basic_param)->value_length + 4 );
+    EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_TOO_SMALL );
+
+    free( buffer );
+  }
+
   /* non-fixture tests */
 
   TEST( CopyParamTest, NullParam ) {
@@ -588,6 +622,18 @@ namespace {
     result = stumpless_param_to_string( NULL );
     EXPECT_NULL( result );
     EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_EMPTY );
+  }
+
+  TEST( ParamIntoStringTest, NullParam) {
+    const size_t max_size = 100;
+    size_t param_size;
+    char *buffer = (char*)malloc(max_size);
+
+    param_size = stumpless_param_into_string( NULL, buffer, max_size );
+    ASSERT_EQ( param_size, 0 );
+    EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_EMPTY );
+
+    free( buffer );
   }
 
   TEST( UnloadParamTest, NullParam ) {
