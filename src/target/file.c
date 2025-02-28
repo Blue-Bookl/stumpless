@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stumpless/config.h>
+#include <stumpless/option.h>
 #include <stumpless/target.h>
 #include <stumpless/target/file.h>
 #include "private/config/wrapper/locale.h"
@@ -91,16 +92,21 @@ file_open_default_target( void ) {
 struct file_target *
 new_file_target( const char *filename ) {
   struct file_target *target;
+  int options;
 
   target = alloc_mem( sizeof( *target ) );
   if( !target ) {
     goto fail;
   }
 
-  target->stream = config_fopen( filename, "a" );
-  if( !target->stream ) {
-    raise_file_open_failure(  );
-    goto fail_stream;
+  options = stumpless_get_default_options(  );
+  target->stream = NULL;
+  if ( !( options & STUMPLESS_OPTION_ODELAY ) ) {
+    target->stream = config_fopen( filename, "a" );
+    if( !target->stream ) {
+      raise_file_open_failure(  );
+      goto fail_stream;
+    }
   }
 
   config_init_mutex( &target->stream_mutex );

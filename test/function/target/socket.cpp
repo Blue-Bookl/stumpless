@@ -212,6 +212,45 @@ namespace {
     unlink( local_socket_name );
   }
 
+  TEST( SocketTargetOpenTest, LocalSocketAlreadyExistsWithOdelay ) {
+    struct sockaddr_un local_socket_addr;
+    struct stumpless_target *target;
+    struct stumpless_entry *entry;
+    const struct stumpless_error *error;
+    const char *local_socket_name = "taken";
+    int local_socket;
+    int result;
+    int default_options;
+
+    default_options = stumpless_get_default_options(  );
+
+    stumpless_set_default_options( STUMPLESS_OPTION_ODELAY );
+
+    entry = create_entry(  );
+    ASSERT_NOT_NULL( entry );
+
+    local_socket_addr.sun_family = AF_UNIX;
+    memcpy(&local_socket_addr.sun_path, local_socket_name, strlen(local_socket_name)+1);
+    local_socket = socket(local_socket_addr.sun_family, SOCK_DGRAM, 0);
+    bind(local_socket, (struct sockaddr *) &local_socket_addr, sizeof(local_socket_addr));
+
+    target = stumpless_open_socket_target( "socket-taken-test",
+                                           local_socket_name );
+    EXPECT_NOT_NULL( target );
+
+    result = stumpless_add_entry( target, entry );
+    EXPECT_LT( result, 0 );
+
+    stumpless_set_default_options( default_options );
+
+    close( local_socket );
+    unlink( local_socket_name );
+
+    stumpless_close_target( target );
+
+    stumpless_destroy_entry_and_contents( entry );
+  }
+
   TEST( SocketTargetOpenTest, MemoryFailure ) {
     const struct stumpless_error *error;
     struct stumpless_target *target;
@@ -227,6 +266,35 @@ namespace {
 
     result = stumpless_set_malloc( malloc );
     EXPECT_TRUE( result == malloc );
+  }
+
+  TEST( SocketTargetOpenTest, Odelay ) {
+    struct stumpless_target *target;
+    struct stumpless_entry *entry;
+    int result;
+    int default_options;
+
+    default_options = stumpless_get_default_options(  );
+
+    stumpless_set_default_options( STUMPLESS_OPTION_ODELAY );
+
+    target = stumpless_open_socket_target( "odelay-target", NULL );
+    EXPECT_NO_ERROR;
+    EXPECT_NOT_NULL( target );
+    EXPECT_NULL( stumpless_target_is_open( target ) );
+
+    entry = create_entry(  );
+    EXPECT_NOT_NULL( entry );
+
+    result = stumpless_add_entry( target, entry );
+    EXPECT_NOT_NULL( stumpless_target_is_open( target ) );
+
+    stumpless_close_socket_target( target );
+    EXPECT_NO_ERROR;
+
+    stumpless_set_default_options( default_options );
+
+    stumpless_destroy_entry_and_contents( entry );
   }
 
   TEST( SocketTargetAddTest, NullId ) {

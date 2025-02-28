@@ -491,6 +491,10 @@ stumpless_get_cons_stream( void );
  * to stumpless_set_current_target(), or the default target if neither of the
  * former exists.
  *
+ * The current target will still be the last target that was opened even if the
+ * target was opened with STUMPLESS_OPTION_ODELAY option and is not yet
+ * connected for logging.
+ *
  * If the target that is designated as the current target is closed, then the
  * current target will be reset to the default target until another target is
  * opened.
@@ -517,6 +521,30 @@ stumpless_get_cons_stream( void );
 STUMPLESS_PUBLIC_FUNCTION
 struct stumpless_target *
 stumpless_get_current_target( void );
+
+/**
+ * Gets the options to be used while initializing a target.
+ *
+ * If no options are set for atomic variable default_option, it will default
+ * to 0.
+ *
+ * **Thread Safety: MT-Safe**
+ * This function is thread safe. Atomic operations are used to work with the
+ * default option.
+ *
+ * **Async Signal Safety: AS-Safe**
+ * This function is safe to call from signal handlers as it only consists of
+ * an atomic read.
+ *
+ * **Async Cancel Safety: AC-Safe**
+ * This function is safe to call from threads that may be asynchronously
+ * cancelled, as it only consists of an atomic read.
+ *
+ * @return Value store in atomic variable default_option
+ */
+STUMPLESS_PUBLIC_FUNCTION
+int
+stumpless_get_default_options( void );
 
 /**
  * Gets the default facility of a target.
@@ -854,6 +882,31 @@ stumpless_set_cons_stream( FILE *stream );
 STUMPLESS_PUBLIC_FUNCTION
 void
 stumpless_set_current_target( struct stumpless_target *target );
+
+/**
+ * Sets the default options to be used for all new targets created.
+ *
+ * If a target is created without calling this function, STUMPLESS_OPTION_NONE 
+ * will be used as default. Using this function will not affect options for 
+ * targets already created.
+ *
+ * **Thread Safety: MT-Safe**
+ * This function is thread safe. Atomic operations are used to work with the
+ * default target.
+ *
+ * **Async Signal Safety: AS-Safe**
+ * This function is safe to call from signal handlers as it only consists of
+ * an atomic write.
+ *
+ * **Async Cancel Safety: AC-Safe**
+ * This function is safe to call from threads that may be asynchronously
+ * cancelled, as it only consists of an atomic write.
+ *
+ * @param option The bitwise 'or' of all options to be set as default.
+ */
+STUMPLESS_PUBLIC_FUNCTION
+void
+stumpless_set_default_options( int option );
 
 /**
  * Sets the default facility of a target.

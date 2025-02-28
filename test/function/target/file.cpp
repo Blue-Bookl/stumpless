@@ -21,6 +21,7 @@
 #include <stumpless.h>
 #include <gtest/gtest.h>
 #include "test/helper/assert.hpp"
+#include "test/helper/fixture.hpp"
 #include "test/helper/memory_allocation.hpp"
 #include "test/helper/rfc5424.hpp"
 
@@ -178,5 +179,43 @@ namespace {
     target = stumpless_open_file_target( NULL );
     EXPECT_NULL( target );
     EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_EMPTY );
+  }
+
+  TEST( FileTargetOpenTest, OptionOdelay ) {
+    const char *filename = "option-odelay.log";
+    struct stumpless_target *target;
+    struct stumpless_entry *entry;
+    struct stumpless_element *element;
+    struct stumpless_param *param;
+    size_t line_count = 3;
+    size_t i;
+    int default_options;
+
+    default_options = stumpless_get_default_options(  );
+
+    stumpless_set_default_options( STUMPLESS_OPTION_ODELAY );
+
+    target = stumpless_open_file_target( filename );
+    EXPECT_NO_ERROR;
+    EXPECT_NOT_NULL( target );
+    EXPECT_NOT_NULL( target->id );
+
+    entry = create_entry(  );
+    ASSERT_NOT_NULL( entry );
+
+    for( i = 0; i < line_count; i++ ) {
+      stumpless_add_entry( target, entry );
+    }
+
+    EXPECT_NO_ERROR;
+    EXPECT_NOT_NULL( target->id );
+
+    stumpless_destroy_entry_and_contents( entry );
+    stumpless_close_file_target( target );
+
+    TestRFC5424File( filename, line_count );
+    remove( filename );
+
+    stumpless_set_default_options( default_options );
   }
 }

@@ -331,6 +331,40 @@ namespace {
     EXPECT_ERROR_ID_EQ( STUMPLESS_ARGUMENT_EMPTY );
   }
 
+  TEST( NetworkTargetOpenTest, Odelay ) {
+    struct stumpless_target *target;
+    struct stumpless_entry *entry;
+    const char *hostname = "localhost";
+    int result;
+    int default_options;
+
+    default_options = stumpless_get_default_options(  );
+
+    stumpless_set_default_options( STUMPLESS_OPTION_ODELAY );
+
+    if( !name_resolves( hostname, AF_INET ) ) {
+      printf( "WARNING: %s did not resolve, so this test will be skipped\n", hostname );
+      SUCCEED(  ) <<  "the hostname did not resolve, so this test will be skipped";
+
+    } else {
+      target = stumpless_open_network_target( "local-hostname",
+                                              hostname,
+                                              STUMPLESS_IPV4_NETWORK_PROTOCOL,
+                                              STUMPLESS_UDP_TRANSPORT_PROTOCOL );
+      EXPECT_NO_ERROR;
+      EXPECT_NOT_NULL( target );
+      EXPECT_NULL( stumpless_target_is_open( target ) );
+
+      result = stumpless_add_log_str( target, 14, "sample-message" );
+      EXPECT_NOT_NULL( stumpless_target_is_open( target ) );
+
+      stumpless_close_network_target( target );
+
+    }
+
+    stumpless_set_default_options( default_options );
+  }
+
   TEST( NetworkTargetSetDestination, BadTargetType ) {
     struct stumpless_target *target;
     struct stumpless_target *result;

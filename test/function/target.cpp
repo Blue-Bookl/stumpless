@@ -605,6 +605,13 @@ namespace {
     stumpless_free_all(  );
   }
 
+  TEST( GetDefaultOption, DefaultValue ) {
+    int option;
+
+    option = stumpless_get_default_options(  );
+    EXPECT_EQ( option, STUMPLESS_OPTION_NDELAY );
+  }
+
   TEST( OpenTarget, AlreadyOpenTarget ) {
     char buffer[100];
     struct stumpless_target *target;
@@ -616,8 +623,8 @@ namespace {
     ASSERT_NOT_NULL( target );
 
     result = stumpless_open_target( target );
-    EXPECT_NULL( result );
-    EXPECT_ERROR_ID_EQ( STUMPLESS_TARGET_INCOMPATIBLE );
+    EXPECT_NOT_NULL( result );
+    EXPECT_NO_ERROR;
 
     stumpless_close_buffer_target( target );
     stumpless_free_all(  );
@@ -1131,6 +1138,56 @@ namespace {
 
     stumpless_close_buffer_target( target );
     stumpless_free_all(  );
+  }
+
+  TEST( SetOption, Odelay ) {
+    struct stumpless_target *target;
+    struct stumpless_target *target_result;
+    char buffer[100];
+    int option;
+
+    target = stumpless_open_buffer_target( "test target",
+                                           buffer,
+                                           sizeof( buffer ) );
+    ASSERT_NOT_NULL( target );
+
+    option = stumpless_get_option( target, STUMPLESS_OPTION_ODELAY );
+    EXPECT_FALSE( option );
+
+    target_result = stumpless_set_option( target, STUMPLESS_OPTION_ODELAY );
+    EXPECT_EQ( target_result, target );
+
+    option = stumpless_get_option( target, STUMPLESS_OPTION_ODELAY );
+    EXPECT_TRUE( option );
+
+    stumpless_close_buffer_target( target );
+    stumpless_free_all(  );
+  }
+
+  TEST( SetDefaultOption, Odelay ) {
+    struct stumpless_target *target;
+    char buffer[100];
+    int option;
+    int default_options;
+
+    default_options = stumpless_get_default_options(  );
+
+    stumpless_set_default_options( STUMPLESS_OPTION_ODELAY );
+
+    option = stumpless_get_default_options(  );
+    ASSERT_EQ( option, STUMPLESS_OPTION_ODELAY );
+
+    target = stumpless_open_buffer_target( "test target",
+                                           buffer,
+                                           sizeof( buffer ) );
+
+    option = stumpless_get_option( target, STUMPLESS_OPTION_ODELAY );
+    EXPECT_TRUE( option );
+
+    stumpless_close_buffer_target( target );
+    stumpless_free_all(  );
+
+    stumpless_set_default_options( default_options );
   }
 
   TEST( WithCons, ConsDisabled ) {

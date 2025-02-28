@@ -21,6 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <stumpless/option.h>
 #include <stumpless/target.h>
 #include <stumpless/target/socket.h>
 #include "private/config/wrapper/locale.h"
@@ -104,13 +105,63 @@ destroy_socket_target( const struct socket_target *trgt ) {
   free_mem( trgt );
 }
 
+int
+socket_target_is_open( const struct stumpless_target *target ) {
+  return ( ( (struct socket_target *) target->id )->local_socket != -1 );
+}
+
+struct stumpless_target *
+open_socket_target( struct stumpless_target *target) {
+  const struct socket_target *result;
+
+  result = open_bind_socket( target->id );
+  if ( !result ) {
+    return NULL;
+  }
+
+  return target;
+}
+
+struct socket_target *
+open_bind_socket( struct socket_target *target ) {
+  int bind_result;
+
+  clear_error(  );
+
+  target->local_socket = socket( target->local_addr.sun_family, SOCK_DGRAM, 0 );
+  if( target->local_socket < 0 ) {
+    raise_socket_failure( L10N_UNIX_SOCKET_FAILED_ERROR_MESSAGE,
+                          errno,
+                          L10N_ERRNO_ERROR_CODE_TYPE );
+    return NULL;
+  }
+
+  bind_result= bind( target->local_socket,
+                     ( struct sockaddr * ) &target->local_addr,
+                     sizeof( target->local_addr ) );
+
+  if( bind_result < 0 ) {
+    raise_socket_bind_failure( L10N_BIND_UNIX_SOCKET_FAILED_ERROR_MESSAGE,
+                               errno,
+                               L10N_ERRNO_ERROR_CODE_TYPE );
+    goto fail_bind;
+  }
+
+  return target;
+
+fail_bind:
+  close( target->local_socket );
+  return NULL;
+}
+
 struct socket_target *
 new_socket_target( const char *dest,
                    size_t dest_len,
                    const char *source,
                    size_t source_len ) {
   struct socket_target *target;
-  int bind_result;
+  struct socket_target *open_result;
+  int options;
 
   target = alloc_mem( sizeof( *target ) );
   if( !target ) {
@@ -125,33 +176,21 @@ new_socket_target( const char *dest,
   memcpy( &target->local_addr.sun_path, source, source_len );
   target->local_addr.sun_path[source_len] = '\0';
 
-  target->local_socket = socket( target->local_addr.sun_family, SOCK_DGRAM, 0 );
-  if( target->local_socket < 0 ) {
-    raise_socket_failure( L10N_UNIX_SOCKET_FAILED_ERROR_MESSAGE,
-                          errno,
-                          L10N_ERRNO_ERROR_CODE_TYPE );
-    goto fail_socket;
-  }
-
-  bind_result= bind( target->local_socket,
-                     ( struct sockaddr * ) &target->local_addr,
-                     sizeof( target->local_addr ) );
-
-  if( bind_result < 0 ) {
-    raise_socket_bind_failure( L10N_BIND_UNIX_SOCKET_FAILED_ERROR_MESSAGE,
-                               errno,
-                               L10N_ERRNO_ERROR_CODE_TYPE );
-    goto fail_bind;
-  }
-
   target->target_addr_len = sizeof( target->target_addr );
+  target->local_socket = -1;
+
+  options = stumpless_get_default_options(  );
+  if ( !( options & STUMPLESS_OPTION_ODELAY ) ) {
+    open_result = open_bind_socket( target );
+    if ( !open_result ) {
+      goto fail_open;
+    }
+  }
 
   return target;
 
-fail_bind:
-  close( target->local_socket );
-fail_socket:
-  free_mem( target );
+fail_open:
+  free_mem( target );  
 fail:
   return NULL;
 }
@@ -164,7 +203,7 @@ sendto_socket_target( const struct socket_target *target,
   // leave off the newline
   msg_length--;
 
- result = sendto( target->local_socket,
+  result = sendto( target->local_socket,
                   msg,
                   msg_length,
                   0,
