@@ -25,6 +25,7 @@ fixes, check out the
    * `stumpless_param_to_string`
    * `stumpless_param_into_string`
    * `stumpless_element_to_string`
+ - Update localization for French (fr-FR :fr:)
 
 ### Fixed
  - Strings that are a case-insensitive prefix of a valid severity string are
