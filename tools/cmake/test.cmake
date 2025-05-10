@@ -1,12 +1,9 @@
-enable_testing()
+include("${PROJECT_SOURCE_DIR}/tools/cmake/gtest.cmake")
 
 if(MSVC)
   # the benefit of simple test code outweighs the burden of writing
   # platform-dependent code, such as the _s functions, just for tests
-  set(function_test_compile_flags "-D_CRT_SECURE_NO_WARNINGS -DGTEST_LINKED_AS_SHARED_LIBRARY=1")
-else()
-  set(function_test_compile_flags "-std=gnu++17 -DGTEST_LINKED_AS_SHARED_LIBRARY=1")
-  set(performance_test_compile_flags "-std=gnu++17")
+  set(function_test_compile_flags "-D_CRT_SECURE_NO_WARNINGS")
 endif(MSVC)
 set(fuzz_test_compile_flags "-g -O1 -fsanitize=fuzzer,address")
 
@@ -15,40 +12,54 @@ function(private_add_function_test)
   set(multi_val_args SOURCES LIBRARIES COMPILE_DEFINITIONS)
   cmake_parse_arguments(FUNCTION_TEST_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
 
-  add_executable(function-test-${FUNCTION_TEST_ARG_NAME}
+  set(t function-test-${FUNCTION_TEST_ARG_NAME})
+  add_executable(${t}
     EXCLUDE_FROM_ALL
     ${FUNCTION_TEST_ARG_SOURCES}
   )
 
-  set_target_properties(function-test-${FUNCTION_TEST_ARG_NAME}
+  set_target_properties(${t}
     PROPERTIES
     BUILD_RPATH "${PROJECT_BINARY_DIR}"
-    OUTPUT_NAME function-test-${FUNCTION_TEST_ARG_NAME}
+    OUTPUT_NAME ${t}
     COMPILE_FLAGS "${function_test_compile_flags}"
     COMPILE_DEFINITIONS "${FUNCTION_TEST_ARG_COMPILE_DEFINITIONS}"
   )
 
-  target_link_libraries(function-test-${FUNCTION_TEST_ARG_NAME}
+  target_link_libraries(${t}
     stumpless
-    libgtest
-    libgtestmain
+    GTest::gtest
+    GTest::gtest_main
     ${FUNCTION_TEST_ARG_LIBRARIES}
   )
 
   if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-    target_link_libraries(function-test-${FUNCTION_TEST_ARG_NAME}
+    target_link_libraries(${t}
       stdc++fs
     )
   endif()
 
-  target_include_directories(function-test-${FUNCTION_TEST_ARG_NAME}
+  set(have_runtime_dlls
+    $<BOOL:$<TARGET_RUNTIME_DLLS:${t}>>
+  )
+  set(copy_command
+      ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_RUNTIME_DLLS:${t}>
+      $<TARGET_FILE_DIR:${t}>
+  )
+  add_custom_command(TARGET ${t} POST_BUILD
+      COMMAND "$<${have_runtime_dlls}:${copy_command}>"
+      COMMAND_EXPAND_LISTS
+  )
+
+  target_include_directories(${t}
     PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include
   )
 
   add_test(NAME ${FUNCTION_TEST_ARG_NAME}
-    COMMAND function-test-${FUNCTION_TEST_ARG_NAME}
+    COMMAND ${t}
   )
 endfunction(private_add_function_test)
 
@@ -57,27 +68,41 @@ function(private_add_single_file_function_test)
   set(multi_val_args SOURCES LIBRARIES COMPILE_DEFINITIONS)
   cmake_parse_arguments(FUNCTION_TEST_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
 
-  add_executable(function-test-single-file-${FUNCTION_TEST_ARG_NAME}
+  set(t function-test-single-file-${FUNCTION_TEST_ARG_NAME})
+  add_executable(${t}
     EXCLUDE_FROM_ALL
     $<TARGET_OBJECTS:single_file_object>
     ${FUNCTION_TEST_ARG_SOURCES}
   )
 
-  set_target_properties(function-test-single-file-${FUNCTION_TEST_ARG_NAME}
+  set_target_properties(${t}
     PROPERTIES
     BUILD_RPATH "${PROJECT_BINARY_DIR}"
-    OUTPUT_NAME function-test-single-file-${FUNCTION_TEST_ARG_NAME}
+    OUTPUT_NAME ${t}
     COMPILE_FLAGS "${function_test_compile_flags}"
     COMPILE_DEFINITIONS "${FUNCTION_TEST_ARG_COMPILE_DEFINITIONS}"
   )
 
-  target_link_libraries(function-test-single-file-${FUNCTION_TEST_ARG_NAME}
-    libgtest
-    libgtestmain
+  target_link_libraries(${t}
+    GTest::gtest
+    GTest::gtest_main
     ${FUNCTION_TEST_ARG_LIBRARIES}
   )
 
-  target_include_directories(function-test-single-file-${FUNCTION_TEST_ARG_NAME}
+  set(have_runtime_dlls
+    $<BOOL:$<TARGET_RUNTIME_DLLS:${t}>>
+  )
+  set(copy_command
+      ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_RUNTIME_DLLS:${t}>
+      $<TARGET_FILE_DIR:${t}>
+  )
+  add_custom_command(TARGET ${t} POST_BUILD
+      COMMAND "$<${have_runtime_dlls}:${copy_command}>"
+      COMMAND_EXPAND_LISTS
+  )
+
+  target_include_directories(${t}
     PRIVATE
     "${SINGLE_INCLUDE_DIR}"
     "${PROJECT_BINARY_DIR}/include"
@@ -102,41 +127,55 @@ function(private_add_thread_safety_test)
   set(multi_val_args SOURCES LIBRARIES COMPILE_DEFINITIONS)
   cmake_parse_arguments(THREAD_SAFETY_TEST_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
 
-  add_executable(thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+  set(t thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME})
+  add_executable(${t}
     EXCLUDE_FROM_ALL
     ${THREAD_SAFETY_TEST_ARG_SOURCES}
   )
 
-  set_target_properties(thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+  set_target_properties(${t}
     PROPERTIES
     BUILD_RPATH "${PROJECT_BINARY_DIR}"
-    OUTPUT_NAME thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+    OUTPUT_NAME ${t}
     COMPILE_FLAGS "${function_test_compile_flags}"
     COMPILE_DEFINITIONS "${THREAD_SAFETY_TEST_ARG_COMPILE_DEFINITIONS}"
   )
 
-  target_link_libraries(thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+  target_link_libraries(${t}
     stumpless
-    libgtest
-    libgtestmain
+    GTest::gtest
+    GTest::gtest_main
     ${THREAD_SAFETY_TEST_ARG_LIBRARIES}
   )
 
+  set(have_runtime_dlls
+    $<BOOL:$<TARGET_RUNTIME_DLLS:${t}>>
+  )
+  set(copy_command
+      ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_RUNTIME_DLLS:${t}>
+      $<TARGET_FILE_DIR:${t}>
+  )
+  add_custom_command(TARGET ${t} POST_BUILD
+      COMMAND "$<${have_runtime_dlls}:${copy_command}>"
+      COMMAND_EXPAND_LISTS
+  )
+
   if(NOT HAVE_WINDOWS_H)
-    target_link_libraries(thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+    target_link_libraries(${t}
       pthread
     )
   endif()
 
-  target_include_directories(thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+  target_include_directories(${t}
     PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include
   )
 
-  add_custom_target(run-thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
-    COMMAND "thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}"
-    DEPENDS thread-safety-test-${THREAD_SAFETY_TEST_ARG_NAME}
+  add_custom_target(run-${t}
+    COMMAND "${t}"
+    DEPENDS ${t}
   )
 endfunction(private_add_thread_safety_test)
 
@@ -146,135 +185,46 @@ macro(add_thread_safety_test name)
   private_add_thread_safety_test(NAME ${name} ${ARGN})
 endmacro(add_thread_safety_test name)
 
-set(PERFORMANCE_OUTPUT_DIR "${PROJECT_BINARY_DIR}/performance-output")
-file(MAKE_DIRECTORY ${PERFORMANCE_OUTPUT_DIR})
-
-function(private_add_performance_test)
-  set(single_val_args NAME)
-  set(multi_val_args SOURCES LIBRARIES)
-  cmake_parse_arguments(FUNCTION_PERF_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
-
-  add_executable(performance-test-${FUNCTION_PERF_ARG_NAME}
-    EXCLUDE_FROM_ALL
-    ${FUNCTION_PERF_ARG_SOURCES}
-  )
-
-  if(MSVC OR MINGW)
-    target_link_libraries(performance-test-${FUNCTION_PERF_ARG_NAME}
-      stumpless
-      libbenchmark
-      libbenchmarkmain
-      Shlwapi.lib
-      ${FUNCTION_PERF_ARG_LIBRARIES}
-    )
-  else()
-    target_link_libraries(performance-test-${FUNCTION_PERF_ARG_NAME}
-      stumpless
-      libbenchmark
-      libbenchmarkmain
-      pthread
-      ${FUNCTION_PERF_ARG_LIBRARIES}
-    )
-  endif()
-
-  set_target_properties(performance-test-${FUNCTION_PERF_ARG_NAME}
-    PROPERTIES
-    BUILD_RPATH "${PROJECT_BINARY_DIR}"
-    COMPILE_FLAGS "${performance_test_compile_flags}"
-    OUTPUT_NAME performance-test-${FUNCTION_PERF_ARG_NAME}
-  )
-
-  target_include_directories(performance-test-${FUNCTION_PERF_ARG_NAME}
-    PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_BINARY_DIR}/include
-  )
-
-  add_custom_target(run-performance-test-${FUNCTION_PERF_ARG_NAME}
-	  COMMAND ${PROJECT_BINARY_DIR}/performance-test-${FUNCTION_PERF_ARG_NAME} --benchmark_out=${PERFORMANCE_OUTPUT_DIR}/${FUNCTION_PERF_ARG_NAME}.json --benchmark_out_format=json
-    DEPENDS performance-test-${FUNCTION_PERF_ARG_NAME}
-  )
-endfunction(private_add_performance_test)
-
-function(private_add_single_file_performance_test)
-  set(single_val_args NAME)
-  set(multi_val_args SOURCES LIBRARIES)
-  cmake_parse_arguments(FUNCTION_PERF_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
-
-  add_executable(performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-    EXCLUDE_FROM_ALL
-    $<TARGET_OBJECTS:single_file_object>
-    ${FUNCTION_PERF_ARG_SOURCES}
-  )
-
-  if(MSVC OR MINGW)
-    target_link_libraries(performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-      libbenchmark
-      libbenchmarkmain
-      Shlwapi.lib
-      ${FUNCTION_PERF_ARG_LIBRARIES}
-    )
-  else()
-    target_link_libraries(performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-      libbenchmark
-      libbenchmarkmain
-      pthread
-      ${FUNCTION_PERF_ARG_LIBRARIES}
-    )
-  endif()
-
-  set_target_properties(performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-    PROPERTIES
-    BUILD_RPATH "${PROJECT_BINARY_DIR}"
-    COMPILE_FLAGS "${performance_test_compile_flags}"
-    OUTPUT_NAME performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-  )
-
-  target_include_directories(performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-    PRIVATE
-    "${SINGLE_INCLUDE_DIR}"
-    "${PROJECT_BINARY_DIR}/include"
-  )
-
-  add_custom_target(run-performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-    COMMAND ${PROJECT_BINARY_DIR}/performance-test-single-file-${FUNCTION_PERF_ARG_NAME} --benchmark_out=${PERFORMANCE_OUTPUT_DIR}/${FUNCTION_PERF_ARG_NAME}.json --benchmark_out_format=json
-    DEPENDS performance-test-single-file-${FUNCTION_PERF_ARG_NAME}
-  )
-endfunction(private_add_single_file_performance_test)
-
-macro(add_performance_test name)
-  list(APPEND STUMPLESS_PERFORMANCE_TEST_RUNNERS run-performance-test-${name})
-  private_add_performance_test(NAME ${name} ${ARGN})
-
-  private_add_single_file_performance_test(NAME ${name} ${ARGN})
-  list(APPEND STUMPLESS_SINGLE_FILE_TARGETS performance-test-single-file-${name})
-  list(APPEND STUMPLESS_BENCH_SINGLE_FILE_RUNNERS run-performance-test-single-file-${name})
-endmacro(add_performance_test)
+set(FUZZ_CORPORA_DIR "${PROJECT_SOURCE_DIR}/test/corpora")
 
 function(private_add_fuzz_test)
   set(single_val_args NAME CORPUS_NAME)
   set(multi_val_args SOURCES LIBRARIES)
   cmake_parse_arguments(FUNCTION_FUZZ_ARG "" "${single_val_args}" "${multi_val_args}" ${ARGN})
 
-  add_executable(fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+  set(t fuzz-test-${FUNCTION_FUZZ_ARG_NAME})
+  add_executable(${t}
     EXCLUDE_FROM_ALL
     ${FUNCTION_FUZZ_ARG_SOURCES}
   )
 
-  target_link_libraries(fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+  target_link_libraries(${t}
     stumpless
     "-fsanitize=fuzzer,address"
     ${FUNCTION_FUZZ_ARG_LIBRARIES}
   )
 
-  set_target_properties(fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+  set(have_runtime_dlls
+    $<BOOL:$<TARGET_RUNTIME_DLLS:${t}>>
+  )
+  set(copy_command
+      ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_RUNTIME_DLLS:${t}>
+      $<TARGET_FILE_DIR:${t}>
+  )
+  add_custom_command(TARGET ${t} POST_BUILD
+      COMMAND "$<${have_runtime_dlls}:${copy_command}>"
+      COMMAND_EXPAND_LISTS
+  )
+
+  set_target_properties(${t}
     PROPERTIES
     BUILD_RPATH "${PROJECT_BINARY_DIR}"
     COMPILE_FLAGS "${fuzz_test_compile_flags}"
-    OUTPUT_NAME fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+    OUTPUT_NAME ${t}
   )
 
-  target_include_directories(fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+  target_include_directories(${t}
     PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include
@@ -282,9 +232,9 @@ function(private_add_fuzz_test)
 
   set(generated_corpus_dir ${PROJECT_BINARY_DIR}/fuzz-corpora/${FUNCTION_FUZZ_ARG_CORPUS_NAME})
   file(MAKE_DIRECTORY ${generated_corpus_dir})
-  add_custom_target(run-fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
-    COMMAND ${PROJECT_BINARY_DIR}/fuzz-test-${FUNCTION_FUZZ_ARG_NAME} ${generated_corpus_dir} "${FUZZ_CORPORA_DIR}/${FUNCTION_FUZZ_ARG_CORPUS_NAME}"
-    DEPENDS fuzz-test-${FUNCTION_FUZZ_ARG_NAME}
+  add_custom_target(run-${t}
+    COMMAND ${PROJECT_BINARY_DIR}/${t} ${generated_corpus_dir} "${FUZZ_CORPORA_DIR}/${FUNCTION_FUZZ_ARG_CORPUS_NAME}"
+    DEPENDS ${t}
   )
 endfunction(private_add_fuzz_test)
 
@@ -305,7 +255,7 @@ set_target_properties(test_helper_fixture
   COMPILE_FLAGS "${function_test_compile_flags}"
 )
 
-add_dependencies(test_helper_fixture libgtest)
+target_link_libraries(test_helper_fixture GTest::gtest)
 
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   target_link_libraries(test_helper_fixture
@@ -329,7 +279,7 @@ set_target_properties(test_helper_network
   COMPILE_FLAGS "${function_test_compile_flags}"
 )
 
-add_dependencies(test_helper_network libgtest)
+target_link_libraries(test_helper_network GTest::gtest)
 
 target_include_directories(test_helper_network
     PRIVATE
@@ -362,7 +312,7 @@ set_target_properties(test_helper_rfc5424
   COMPILE_FLAGS "${function_test_compile_flags}"
 )
 
-add_dependencies(test_helper_rfc5424 libgtest)
+target_link_libraries(test_helper_rfc5424 GTest::gtest)
 
 target_include_directories(test_helper_rfc5424
     PRIVATE
@@ -396,9 +346,7 @@ set_target_properties(test_helper_usage
   COMPILE_FLAGS "${function_test_compile_flags}"
 )
 
-target_link_libraries(test_helper_usage
-  libgtest
-)
+target_link_libraries(test_helper_usage GTest::gtest)
 
 target_include_directories(test_helper_usage
     PRIVATE
