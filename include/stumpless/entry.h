@@ -123,6 +123,34 @@ struct stumpless_entry {
 #  endif
 };
 
+ /**
+  * Returns all  entry's elements in formatted string.
+  * The character buffer should be freed when no longer is needed by the caller.
+  *
+  * **Thread Safety: MT-Safe**
+  * This function is thread safe. A mutex is used to coordinate the read of the
+  * element with other accesses and modifications.
+  *
+  * **Async Signal Safety: AS-Unsafe lock heap**
+  * This function is not safe to call from signal handlers due to the use of a
+  * non-reentrant lock to coordinate access and the use of memory management
+  * functions to create the result.
+  *
+  * **Async Cancel Safety: AC-Unsafe lock heap**
+  * This function is not safe to call from threads that may be asynchronously
+  * cancelled, due to the use of a lock that could be left locked as well as
+  * memory management functions.
+  *
+  *
+  * @param entry The entry to get all elements
+  *
+  * @return The formatted string of each entry's elements. Each element is
+  * formatted as element="value" and joined by " , ".  And append each element's
+  * string by stumpless_element_to_string
+  */
+ STUMPLESS_PUBLIC_FUNCTION
+ char *stumpless_entry_to_string( const struct stumpless_entry *entry );
+
 /**
  * Adds an element to an entry. The element is appended to the end of the list
  * of elements in this entry.
